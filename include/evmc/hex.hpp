@@ -4,6 +4,7 @@
 #pragma once
 
 #include <cstdint>
+#include <cstring>
 #include <iterator>
 #include <optional>
 #include <string>
@@ -59,7 +60,7 @@ inline constexpr bool isspace(char ch) noexcept
 }
 
 template <typename OutputIt>
-inline constexpr bool from_hex(std::string_view hex, OutputIt result) noexcept
+inline constexpr std::optional<OutputIt> from_hex(std::string_view hex, OutputIt out) noexcept
 {
     // Omit the optional 0x prefix.
     if (hex.size() >= 2 && hex[0] == '0' && hex[1] == 'x')
@@ -74,7 +75,7 @@ inline constexpr bool from_hex(std::string_view hex, OutputIt result) noexcept
 
         const int v = from_hex_digit(h);
         if (v < 0)
-            return false;
+            return {};
 
         if (hi_nibble == empty_mark)
         {
@@ -82,12 +83,14 @@ inline constexpr bool from_hex(std::string_view hex, OutputIt result) noexcept
         }
         else
         {
-            *result++ = static_cast<uint8_t>(hi_nibble | v);
+            *out++ = static_cast<uint8_t>(hi_nibble | v);
             hi_nibble = empty_mark;
         }
     }
 
-    return hi_nibble == empty_mark;
+    if (hi_nibble != empty_mark)
+        return {};
+    return out;
 }
 }  // namespace internal
 
@@ -103,7 +106,7 @@ inline bool validate_hex(std::string_view hex) noexcept
         noop_output_iterator operator++(int) noexcept { return *this; }  // NOLINT(cert-dcl21-cpp)
     };
 
-    return internal::from_hex(hex, noop_output_iterator{});
+    return internal::from_hex(hex, noop_output_iterator{}).has_value();
 }
 
 /// Decodes hex encoded string to bytes.
@@ -118,5 +121,27 @@ inline std::optional<bytes> from_hex(std::string_view hex)
     if (!internal::from_hex(hex, std::back_inserter(bs)))
         return {};
     return bs;
+}
+
+template <typename T>
+constexpr std::optional<T> from_hex(std::string_view s) noexcept
+{
+    // Omit the optional 0x prefix.
+    if (s.size() >= 2 && s[0] == '0' && s[1] == 'x')
+        s.remove_prefix(2);
+
+    uint8_t data[sizeof(T)]{};
+    const auto num_bytes = s.length() / 2;
+    if (num_bytes > std::size(data))
+        return {};
+    const auto end = internal::from_hex(s, &data[sizeof(T) - num_bytes]);
+    if (!end)
+        return {};
+    if (*end != std::end(data))
+        return {};
+
+    T r{};
+    std::memcpy(&r, data, std::size(data));
+    return r;
 }
 }  // namespace evmc
