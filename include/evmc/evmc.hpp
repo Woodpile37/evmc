@@ -281,37 +281,46 @@ inline constexpr bytes32::operator bool() const noexcept
 
 namespace literals
 {
-/// Breaks compilation and reports error string in constexpr context.
-inline void error([[maybe_unused]] const char* message) noexcept {}
+/// In constexpr context, this raises compile time error (because this function is non-constexpr).
+[[noreturn]] inline void error([[maybe_unused]] const char* message) noexcept
+{
+    std::terminate();
+}
 
 /// Converts a raw literal into value of type T.
+///
+/// This function is expected to be used on literals in constexpr context only.
 template <typename T>
-constexpr T to(std::string_view s) noexcept
+constexpr T from_hex(std::string_view s) noexcept
 {
     if (s == "0")
         return T{};
 
     if (s[0] != '0' || s[1] != 'x')
         error("literal must be in hexadecimal notation");
+    s.remove_prefix(2);
+    if (s.length() > 2 * sizeof(T))
+        error("literal must not exceed the result type size");
+    if (s.length() % 2 != 0)
+        error("hexadecimal literal must have even number of digits");
 
-    if (s.length() != 2 * sizeof(T) + 2)
-        error("literal must match the result type size");
-
+    const auto num_bytes = s.length() / 2;
     T r{};
-    internal::from_hex(s, r.bytes);
+    if (!internal::from_hex(s, &r.bytes[sizeof(T) - num_bytes]))
+        error("literal contains non-hex digit");
     return r;
 }
 
 /// Literal for evmc::address.
 constexpr address operator""_address(const char* s) noexcept
 {
-    return to<address>(s);
+    return from_hex<address>(s);
 }
 
 /// Literal for evmc::bytes32.
 constexpr bytes32 operator""_bytes32(const char* s) noexcept
 {
-    return to<bytes32>(s);
+    return from_hex<bytes32>(s);
 }
 }  // namespace literals
 

@@ -361,6 +361,10 @@ TEST(cpp, literals)
     static_assert(zero_address == evmc::address{});
     static_assert(zero_hash == evmc::bytes32{});
 
+    static_assert(0x00_address == 0x0000000000000000000000000000000000000000_address);
+    static_assert(0x01_address == 0x0000000000000000000000000000000000000001_address);
+    static_assert(0xf101_address == 0x000000000000000000000000000000000000f101_address);
+
     EXPECT_EQ(0_address, evmc::address{});
     EXPECT_EQ(0_bytes32, evmc::bytes32{});
 
@@ -375,6 +379,18 @@ TEST(cpp, literals)
                        0xc3, 0xc4, 0xc5, 0xc6, 0xc7, 0xc8, 0xc9, 0xd0, 0xd1, 0xd2}}};
     EXPECT_EQ(h1, f1);
 }
+//
+// TEST(cpp, literals_errors)
+// {
+//     static int error_count = 0;
+//     const auto orig_handler = std::set_terminate([]{++error_count;});
+//
+//     const auto l = "1";
+//     evmc::literals::operator""_address(l);
+//     EXPECT_EQ(error_count, 1);
+//
+//     std::set_terminate(orig_handler);
+// }
 
 TEST(cpp, bytes32_from_uint)
 {
@@ -820,7 +836,10 @@ TEST(cpp, status_code_to_string)
 
 // NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
 #define TEST_CASE(NAME) \
-    TestCase { NAME, #NAME }
+    TestCase            \
+    {                   \
+        NAME, #NAME     \
+    }
     constexpr TestCase test_cases[]{
         TEST_CASE(EVMC_SUCCESS),
         TEST_CASE(EVMC_FAILURE),
@@ -871,7 +890,10 @@ TEST(cpp, revision_to_string)
 
 // NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
 #define TEST_CASE(NAME) \
-    TestCase { NAME, #NAME }
+    TestCase            \
+    {                   \
+        NAME, #NAME     \
+    }
     constexpr TestCase test_cases[]{
         TEST_CASE(EVMC_FRONTIER),
         TEST_CASE(EVMC_HOMESTEAD),
